@@ -192,7 +192,9 @@ namespace ProgramTree
         }
     }
 
-    public enum Operator { Plus, Minus, Mult, Div, Or, And, Lt, Le, Gt, Ge, Eq, Neq }
+    public enum Operator { Plus, Minus, Mult, Div, Or, And, Lt, Le, Gt, Ge, Eq, Neq,
+        Phi
+    }
     public class BinOp : ExprNode
     {
         public ExprNode Lhs { get; }

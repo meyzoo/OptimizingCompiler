@@ -125,6 +125,18 @@ namespace UnitTestProject1
                                                     "y = 9;" +
                                                     "z = y+5;" +
                                                     "x = 14 + 11*y + z;";
+            public static readonly string ssaSample =
+                                                    "x = 10;" +
+                                                    "y = 34;" +
+                                                    "y = y;" +
+                                                    "x = x + 1;" +
+                                                    "if 13 {" +
+                                                    "y = x / 4;" +
+                                                    "u = y; }" +
+                                                    "else {" +
+                                                    "y = x + 5;" +
+                                                    "u = x - y; }" +
+                                                    "v = u;";
         }
     }
 }

@@ -16,6 +16,7 @@ namespace LYtest.BaseBlocks
         bool Remove(IThreeAddressCode elem);
         IEnumerable<IThreeAddressCode> Enumerate();
         string ToString();
+        void NewAppend(IThreeAddressCode newAssign);
     }
     
     public class BaseBlock : IBaseBlock
@@ -40,6 +41,11 @@ namespace LYtest.BaseBlocks
         public bool Remove(IThreeAddressCode elem)
         {
             return _elems.Remove(elem);
+        }
+
+        public void NewAppend(IThreeAddressCode newAssign)
+        {
+            _elems.AddFirst(newAssign);
         }
 
         public IEnumerable<IThreeAddressCode> Enumerate()

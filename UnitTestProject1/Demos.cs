@@ -1,21 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using LYtest;
 using LYtest.CFG;
-using LYtest.Interpretator;
 using LYtest.LinearRepr;
-using LYtest.LinearRepr.Values;
 using LYtest.ReachingDefs;
 using LYtest.ActiveVars;
 using LYtest.BaseBlocks;
 using LYtest.Visitors;
-using ProgramTree;
 using LYtest.Optimize.AvailableExprAnalyzer;
-using QuickGraph.Graphviz;
 using LYtest.Optimize.ConstantPropagation;
+using LYtest.Optimize.SSA;
 
 namespace UnitTestProject1
 {
@@ -258,6 +253,27 @@ namespace UnitTestProject1
                                "%ulabel172: d := 7\n" +
                                "%ulabel173: e := 7\n";
             Console.WriteLine(res);
+        }
+
+        [TestMethod]
+        public void SsaRemovingTest()
+        {
+            var root = Parser.ParseString(Samples.SampleProgramText.ssaSample);
+            var code = ProgramTreeToLinear.Build(root);
+            var blocks = LinearToBaseBlock.Build(code);
+            // Построение CFG-графа из блоков
+            var ctrlFlowGraph = new CFGraph(blocks);
+            Console.WriteLine("------------ Граф потока управления: ------------");
+            Console.WriteLine(ctrlFlowGraph.ToString());
+            // Построение SSA-формы по CFG-графу
+            SsaBuilding ssa = new SsaBuilding(ctrlFlowGraph);
+            CFGraph ssaGraph = ssa.SSAForm;
+            Console.WriteLine("------------ SSA-форма для графа: ------------");
+            Console.WriteLine(ssaGraph.ToString());
+            // Восстановление из SSA-формы
+            SsaRemoving ssaRmv = new SsaRemoving(ssaGraph);
+            Console.WriteLine("------------ Восстановление из SSA-формы: ------------");
+            Console.WriteLine(ssaRmv.RemoveSSA());
         }
 
     }

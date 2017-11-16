@@ -83,6 +83,9 @@ namespace LYtest.LinearRepr
                     case Operation.Println:
                         body = $"printLn {LeftOperand}";
                         break;
+                    case Operation.Phi:
+                        body = $"{Destination} = {LeftOperand} IF WENT FROM: {RightOperand}";
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
