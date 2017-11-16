@@ -33,7 +33,7 @@ namespace LYtest.Optimize.SSA
                 {
                     if (LinearHelper.AsDefinition(line) != null &&
                 !SsaRemoving.IsPhiId(line.LeftOperand.Value as IdentificatorValue))
-                        variables.Add(line.Destination as IdentificatorValue);
+                       variables.Add(line.Destination as IdentificatorValue);
                 }
             }
             return variables;

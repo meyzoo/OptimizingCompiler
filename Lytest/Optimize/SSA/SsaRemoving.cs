@@ -21,7 +21,7 @@ namespace LYtest.Optimize.SSA
             foreach (var block in cfGraph.Blocks)
             {
                 foreach (var instr in block.Enumerate())
-                 if (AssignPhi(instr))
+                    if (AssignPhi(instr))
                         setTAC.Add(instr);
                 var phiInstrs = block.Enumerate().Select(x => x).Where(instr => instr.Operation == Operation.Phi);
                 for (int i = phiInstrs.Count() - 1; i >= 0; --i)
