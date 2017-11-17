@@ -16,6 +16,7 @@ using ProgramTree;
 using LYtest.Optimize.AvailableExprAnalyzer;
 using LYtest.Region;
 using LYtest.SymbolicAnalysis;
+using LYtest.Optimize.SSA;
 
 namespace UnitTestProject1
 {
@@ -383,6 +384,27 @@ namespace UnitTestProject1
             Assert.AreEqual(regSeq.Regions.Count, 24);
             Assert.AreEqual(regSeq.Regions.Last().Header, cfg.GetVertices().ToList()[0]);
             Assert.IsTrue(regSeq.Regions.Exists(r => natCycles[0][0] == r.Header));
+        }
+
+        [TestMethod]
+        public void SsaRemovingTest()
+        {
+            var root = Parser.ParseString(Samples.SampleProgramText.ssaSample);
+            var code = ProgramTreeToLinear.Build(root);
+            var blocks = LinearToBaseBlock.Build(code);
+            // Построение CFG-графа из блоков
+            var ctrlFlowGraph = new CFGraph(blocks);
+            Console.WriteLine("------------ Граф потока управления: ------------");
+            Console.WriteLine(ctrlFlowGraph.ToString());
+            // Построение SSA-формы по CFG-графу
+            SsaBuilding ssa = new SsaBuilding(ctrlFlowGraph);
+            CFGraph ssaGraph = ssa.SSAForm;
+            Console.WriteLine("------------ SSA-форма для графа: ------------");
+            Console.WriteLine(ssaGraph.ToString());
+            // Восстановление из SSA-формы
+            SsaRemoving ssaRmv = new SsaRemoving(ssaGraph);
+            Console.WriteLine("------------ Восстановление из SSA-формы: ------------");
+            Console.WriteLine(ssaRmv.RemoveSSA());
         }
 
     }

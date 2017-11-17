@@ -21,7 +21,7 @@ namespace LYtest.Optimize.SSA
             foreach (var block in cfGraph.Blocks)
             {
                 foreach (var instr in block.Enumerate())
-                    if (AssignPhi(instr))
+                if (SsaBuilding.AssignPhi(instr))
                         setTAC.Add(instr);
                 var phiInstrs = block.Enumerate().Select(x => x).Where(instr => instr.Operation == Operation.Phi);
                 for (int i = phiInstrs.Count() - 1; i >= 0; --i)
@@ -41,20 +41,13 @@ namespace LYtest.Optimize.SSA
             }
         }
 
-        private void SetNewName(IdentificatorValue v)
-        {
-            if (varsDict[v] == null) varsDict[v] = new Stack<int>();
-            var i = counters[v];
-            varsDict[v].Push(i);
-            counters[v] = i + 1;
-        }
-
         private HashSet<IdentificatorValue> GetAllVariables(CFGraph inputGraph)
         {
             HashSet<IdentificatorValue> variables = new HashSet<IdentificatorValue>();
             foreach (var block in inputGraph.Blocks)
                 foreach (var line in block.Enumerate())
-                    if (LinearHelper.AsDefinition(line) != null && !IsPhiId(line.LeftOperand.Value as IdentificatorValue))
+                    if (LinearHelper.AsDefinition(line) != null && 
+                        !SsaBuilding.IsPhiId(line.LeftOperand.Value as IdentificatorValue))
                     {
                         if (line.LeftOperand is IdentificatorValue)
                             variables.Add(line.LeftOperand as IdentificatorValue);
@@ -72,37 +65,41 @@ namespace LYtest.Optimize.SSA
                 return;
             foreach (var str in currentNode.Value.Enumerate())
             {
-                if (AssignPhi(str))
+                if (SsaBuilding.AssignPhi(str))
                 {
                     IdentificatorValue curVar = str.Destination as IdentificatorValue;
-                    SetNewName(curVar);
+                    SsaBuilding.SetNewName(varsDict, counters, curVar, false);
                     int varCounter = varsDict[curVar].Peek();
                     str.Destination = new IdentificatorValue
-                        (str.Destination.Value.Remove(str.Destination.Value.Length - varCounter.ToString().Length, varCounter.ToString().Length));
+                    (str.Destination.Value.Remove(str.Destination.Value.Length - 
+                    varCounter.ToString().Length, varCounter.ToString().Length));
                 }
-                if (!IsPhiId(str.LeftOperand as IdentificatorValue) && str.Operation != Operation.Phi)
+                if (!SsaBuilding.IsPhiId(str.LeftOperand as IdentificatorValue) && str.Operation != Operation.Phi)
                 {
                     if (str.RightOperand is IdentificatorValue)
                     {
                         IdentificatorValue curVar = str.RightOperand as IdentificatorValue;
                         int varCounter = varsDict[curVar].Peek();
                         str.RightOperand = new IdentificatorValue(str.RightOperand.Value.ToString().Remove
-                            (str.RightOperand.Value.ToString().Length - varCounter.ToString().Length, varCounter.ToString().Length));
+                            (str.RightOperand.Value.ToString().Length - 
+                            varCounter.ToString().Length, varCounter.ToString().Length));
                     }
                     if (str.LeftOperand is IdentificatorValue)
                     {
                         IdentificatorValue curVar = str.LeftOperand as IdentificatorValue;
                         int varCounter = varsDict[curVar].Peek();
                         str.LeftOperand = new IdentificatorValue(str.LeftOperand.Value.ToString().Remove
-                            (str.LeftOperand.Value.ToString().Length - varCounter.ToString().Length, varCounter.ToString().Length));
+                            (str.LeftOperand.Value.ToString().Length - 
+                            varCounter.ToString().Length, varCounter.ToString().Length));
                     }
                     if (str.Destination is IdentificatorValue)
                     {
                         IdentificatorValue curVar = str.Destination as IdentificatorValue;
-                        SetNewName(curVar);
+                        SsaBuilding.SetNewName(varsDict, counters, curVar, false);
                         int varCounter = varsDict[curVar].Peek();
                         str.Destination = new IdentificatorValue
-                            (str.Destination.Value.Remove(str.Destination.Value.Length - varCounter.ToString().Length, varCounter.ToString().Length));
+                            (str.Destination.Value.Remove(str.Destination.Value.Length -
+                            varCounter.ToString().Length, varCounter.ToString().Length));
                     }
                 }
             }
@@ -112,7 +109,7 @@ namespace LYtest.Optimize.SSA
                 if (child == null)
                     continue;
                 foreach (var s in child.Value.Enumerate())
-                    if (AssignPhi(s))
+                    if (SsaBuilding.AssignPhi(s))
                     {
                         foreach (var line in child.Value.Enumerate()
                             .Select(str => str).Where(str => str.Operation == Operation.Phi && str.Destination == s.LeftOperand))
@@ -146,14 +143,5 @@ namespace LYtest.Optimize.SSA
             return cfGraph;
         }
 
-        public static bool AssignPhi(IThreeAddressCode line)
-        {
-            return IsPhiId(line.LeftOperand as IdentificatorValue) && line.Operation == Operation.Assign;
-        }
-
-        public static bool IsPhiId(IdentificatorValue idCheck)
-        {
-            return idCheck != null && idCheck.Value.Count() >= 3  && idCheck.Value.Substring(0, 3) == "phi";
-        }
     }
 }

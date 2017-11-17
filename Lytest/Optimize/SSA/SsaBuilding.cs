@@ -23,7 +23,7 @@ namespace LYtest.Optimize.SSA
             var insertPhiGraph = InsertPhiFuncs(inputGraph);
             ssaForm = RenamingVars(insertPhiGraph);
         }
-
+ 
         private HashSet<IdentificatorValue> GetAllVars(CFGraph inputGraph)
         {
             HashSet<IdentificatorValue> variables = new HashSet<IdentificatorValue>();
@@ -32,7 +32,7 @@ namespace LYtest.Optimize.SSA
                 foreach (var line in block.Enumerate())
                 {
                     if (LinearHelper.AsDefinition(line) != null &&
-                !SsaRemoving.IsPhiId(line.LeftOperand.Value as IdentificatorValue))
+                        !IsPhiId(line.LeftOperand.Value as IdentificatorValue))
                        variables.Add(line.Destination as IdentificatorValue);
                 }
             }
@@ -64,12 +64,13 @@ namespace LYtest.Optimize.SSA
             return ssaGraph;
         }
 
-        private void SetNewName(IdentificatorValue v)
+        public static void SetNewName(Dictionary<IdentificatorValue, Stack<int>> dict1,
+            Dictionary<IdentificatorValue, int> dict2, IdentificatorValue v, bool flag)
         {
-            if (varsDictionary[v] == null) varsDictionary[v] = new Stack<int>();
-            var i = varsCounter[v];
-            varsDictionary[v].Push(i);
-            varsCounter[v] = i + 1;
+            if (dict1[v] == null) dict1[v] = new Stack<int>();
+            var i = dict2[v];
+            dict1[v].Push(i);
+            dict2[v] = flag ? i + 1 : i - 1;
         }
 
         private void RenamingAllVars(CFGNode currentNode)
@@ -78,14 +79,14 @@ namespace LYtest.Optimize.SSA
                 return;
             foreach (var str in currentNode.Value.Enumerate())
             {
-                if (SsaRemoving.AssignPhi(str))
+                if (AssignPhi(str))
                 {
                     IdentificatorValue curVar = str.Destination as IdentificatorValue;
-                    SetNewName(curVar);
+                    SetNewName(varsDictionary, varsCounter, curVar, true);
                     int varCounter = varsDictionary[curVar].Peek();
                     str.Destination = new IdentificatorValue(str.Destination.Value + varCounter.ToString());
                 }
-                if (!SsaRemoving.IsPhiId(str.LeftOperand as IdentificatorValue) && str.Operation != Operation.Phi)
+                if (!IsPhiId(str.LeftOperand as IdentificatorValue) && str.Operation != Operation.Phi)
                 {
                     if (str.RightOperand is IdentificatorValue)
                     {
@@ -102,7 +103,7 @@ namespace LYtest.Optimize.SSA
                     if (str.Destination is IdentificatorValue)
                     {
                         IdentificatorValue curVar = str.Destination as IdentificatorValue;
-                        SetNewName(curVar);
+                        SetNewName(varsDictionary, varsCounter, curVar, true);
                         int varCounter = varsDictionary[curVar].Peek();
                         str.Destination = new IdentificatorValue(str.Destination.Value + varCounter.ToString());
                     }
@@ -114,7 +115,7 @@ namespace LYtest.Optimize.SSA
                 if (child == null)
                     continue;
                 foreach (var s in child.Value.Enumerate())
-                    if (SsaRemoving.AssignPhi(s))
+                    if (AssignPhi(s))
                     {
                         foreach (var line in child.Value.Enumerate()
                             .Select(str => str).Where(str => str.Operation == Operation.Phi && str.Destination == s.LeftOperand))
@@ -156,6 +157,16 @@ namespace LYtest.Optimize.SSA
             }
             RenamingAllVars(cfGraph.GetRoot());
             return cfGraph;
+        }
+
+        public static bool AssignPhi(IThreeAddressCode line)
+        {
+            return IsPhiId(line.LeftOperand as IdentificatorValue) && line.Operation == Operation.Assign;
+        }
+
+        public static bool IsPhiId(IdentificatorValue idCheck)
+        {
+            return idCheck != null && idCheck.Value.Count() >= 3 && idCheck.Value.Substring(0, 3) == "phi";
         }
 
     }
