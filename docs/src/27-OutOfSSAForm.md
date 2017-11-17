@@ -117,7 +117,140 @@ foreach (var block in ssaGraph.Blocks)
 ### Тест
 
 ```c sharp
-
+[TestMethod]
+public void SsaRemovingTest()
+{
+    var root = Parser.ParseString(Samples.SampleProgramText.ssaSample);
+    var code = ProgramTreeToLinear.Build(root);
+    var blocks = LinearToBaseBlock.Build(code);
+    // Построение CFG-графа из блоков
+    var ctrlFlowGraph = new CFGraph(blocks);
+    Console.WriteLine("------------ Граф потока управления: ------------");
+    Console.WriteLine(ctrlFlowGraph.ToString());
+    // Построение SSA-формы по CFG-графу
+    SsaBuilding ssa = new SsaBuilding(ctrlFlowGraph);
+    CFGraph ssaGraph = ssa.SSAForm;
+    Console.WriteLine("------------ SSA-форма для графа: ------------");
+    Console.WriteLine(ssaGraph.ToString());
+    // Восстановление из SSA-формы
+    SsaRemoving ssaRmv = new SsaRemoving(ssaGraph);
+    Console.WriteLine("------------ Восстановление из SSA-формы: ------------");
+    Console.WriteLine(ssaRmv.RemoveSSA());
+}
 ```
 
+Пример входных данных:
 
+```c sharp
+public static readonly string ssaSample = "x = 10;" +
+                                          "y = 34;" +
+                                          "y = y;" +
+                                          "x = x + 1;" +
+                                          "if 13 {" +
+                                          "y = x / 4;" +
+                                          "u = y; }" +
+                                          "else {" +
+                                          "y = x + 5;" +
+                                          "u = x - y; }" +
+                                          "v = u;";
+```
+
+Результаты:
+```
+------------ Граф потока управления: ------------
+digraph G {
+0 [label="
+%ulabel391: x := 10
+%ulabel392: y := 34
+%ulabel393: y := y
+%ulabel394: x := x + 1
+%ulabel395: IF 13 THEN GOTO %label0
+"];
+1 [label="
+%ulabel396: y := x + 5
+%ulabel397: u := x - y
+%ulabel398: GOTO %label1
+"];
+2 [label="
+%label0: NOP
+%ulabel399: y := x / 4
+%ulabel400: u := y
+"];
+3 [label="
+%label1: NOP
+%ulabel401: v := u
+"];
+0 -> 1 [];
+0 -> 2 [];
+1 -> 3 [];
+2 -> 3 [];
+}
+------------ SSA-форма для графа: ------------
+digraph G {
+0 [label="
+%ulabel391: x0 := 10
+%ulabel392: y0 := 34
+%ulabel393: y1 := y0
+%ulabel394: x1 := x0 + 1
+%ulabel395: IF 13 THEN GOTO %label0
+"];
+1 [label="
+%ulabel396: y2 := x1 + 5
+%ulabel397: u0 := x1 - y2
+%ulabel398: GOTO %label1
+"];
+2 [label="
+%label0: NOP
+%ulabel399: y4 := x1 / 4
+%ulabel400: u2 := y4
+"];
+3 [label="
+%ulabel411: v0 := phi3
+%ulabel413: phi3 = v0 IF WENT FROM: %ulabel400
+%ulabel412: phi3 = v0 IF WENT FROM: %ulabel398
+%ulabel408: u1 := phi2
+%ulabel410: phi2 = u2 IF WENT FROM: %ulabel400
+%ulabel409: phi2 = u0 IF WENT FROM: %ulabel398
+%ulabel405: y3 := phi1
+%ulabel407: phi1 = y4 IF WENT FROM: %ulabel400
+%ulabel406: phi1 = y2 IF WENT FROM: %ulabel398
+%ulabel402: x2 := phi0
+%ulabel404: phi0 = x1 IF WENT FROM: %ulabel400
+%ulabel403: phi0 = x1 IF WENT FROM: %ulabel398
+%label1: NOP
+%ulabel401: v1 := u1
+"];
+0 -> 1 [];
+0 -> 2 [];
+1 -> 3 [];
+2 -> 3 [];
+}
+------------ Восстановление из SSA-формы: ------------
+digraph G {
+0 [label="
+%ulabel391: x := 10
+%ulabel392: y := 34
+%ulabel393: y := y
+%ulabel394: x := x + 1
+%ulabel395: IF 13 THEN GOTO %label0
+"];
+1 [label="
+%ulabel396: y := x + 5
+%ulabel397: u := x - y
+%ulabel398: GOTO %label1
+"];
+2 [label="
+%label0: NOP
+%ulabel399: y := x / 4
+%ulabel400: u := y
+"];
+3 [label="
+%label1: NOP
+%ulabel401: v := u
+"];
+0 -> 1 [];
+0 -> 2 [];
+1 -> 3 [];
+2 -> 3 [];
+}
+```
