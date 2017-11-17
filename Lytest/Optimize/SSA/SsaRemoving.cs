@@ -21,8 +21,8 @@ namespace LYtest.Optimize.SSA
             foreach (var block in cfGraph.Blocks)
             {
                 foreach (var instr in block.Enumerate())
-                if (SsaBuilding.AssignPhi(instr))
-                        setTAC.Add(instr);
+                if (AdditionalMethods.AssignPhi(instr))
+                    setTAC.Add(instr);
                 var phiInstrs = block.Enumerate().Select(x => x).Where(instr => instr.Operation == Operation.Phi);
                 for (int i = phiInstrs.Count() - 1; i >= 0; --i)
                     block.Remove(phiInstrs.ElementAt(i));
@@ -47,7 +47,7 @@ namespace LYtest.Optimize.SSA
             foreach (var block in inputGraph.Blocks)
                 foreach (var line in block.Enumerate())
                     if (LinearHelper.AsDefinition(line) != null && 
-                        !SsaBuilding.IsPhiId(line.LeftOperand.Value as IdentificatorValue))
+                        !AdditionalMethods.IsPhiId(line.LeftOperand.Value as IdentificatorValue))
                     {
                         if (line.LeftOperand is IdentificatorValue)
                             variables.Add(line.LeftOperand as IdentificatorValue);
@@ -65,16 +65,16 @@ namespace LYtest.Optimize.SSA
                 return;
             foreach (var str in currentNode.Value.Enumerate())
             {
-                if (SsaBuilding.AssignPhi(str))
+                if (AdditionalMethods.AssignPhi(str))
                 {
                     IdentificatorValue curVar = str.Destination as IdentificatorValue;
-                    SsaBuilding.SetNewName(varsDict, counters, curVar, false);
+                    AdditionalMethods.SetNewName(varsDict, counters, curVar, false);
                     int varCounter = varsDict[curVar].Peek();
                     str.Destination = new IdentificatorValue
                     (str.Destination.Value.Remove(str.Destination.Value.Length - 
                     varCounter.ToString().Length, varCounter.ToString().Length));
                 }
-                if (!SsaBuilding.IsPhiId(str.LeftOperand as IdentificatorValue) && str.Operation != Operation.Phi)
+                if (!AdditionalMethods.IsPhiId(str.LeftOperand as IdentificatorValue) && str.Operation != Operation.Phi)
                 {
                     if (str.RightOperand is IdentificatorValue)
                     {
@@ -95,7 +95,7 @@ namespace LYtest.Optimize.SSA
                     if (str.Destination is IdentificatorValue)
                     {
                         IdentificatorValue curVar = str.Destination as IdentificatorValue;
-                        SsaBuilding.SetNewName(varsDict, counters, curVar, false);
+                        AdditionalMethods.SetNewName(varsDict, counters, curVar, false);
                         int varCounter = varsDict[curVar].Peek();
                         str.Destination = new IdentificatorValue
                             (str.Destination.Value.Remove(str.Destination.Value.Length -
@@ -109,7 +109,7 @@ namespace LYtest.Optimize.SSA
                 if (child == null)
                     continue;
                 foreach (var s in child.Value.Enumerate())
-                    if (SsaBuilding.AssignPhi(s))
+                    if (AdditionalMethods.AssignPhi(s))
                     {
                         foreach (var line in child.Value.Enumerate()
                             .Select(str => str).Where(str => str.Operation == Operation.Phi && str.Destination == s.LeftOperand))

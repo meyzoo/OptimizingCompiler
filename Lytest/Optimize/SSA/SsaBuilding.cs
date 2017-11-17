@@ -20,7 +20,7 @@ namespace LYtest.Optimize.SSA
         public SsaBuilding(CFGraph inputGraph)
         {
             vars = GetAllVars(inputGraph);
-            var insertPhiGraph = InsertPhiFuncs(inputGraph);
+            var insertPhiGraph = InsertPhi(inputGraph);
             ssaForm = RenamingVars(insertPhiGraph);
         }
  
@@ -28,24 +28,18 @@ namespace LYtest.Optimize.SSA
         {
             HashSet<IdentificatorValue> variables = new HashSet<IdentificatorValue>();
             foreach (var block in inputGraph.Blocks)
-            {
                 foreach (var line in block.Enumerate())
-                {
                     if (LinearHelper.AsDefinition(line) != null &&
-                        !IsPhiId(line.LeftOperand.Value as IdentificatorValue))
-                       variables.Add(line.Destination as IdentificatorValue);
-                }
-            }
+                        !AdditionalMethods.IsPhiId(line.LeftOperand.Value as IdentificatorValue))
+                        variables.Add(line.Destination as IdentificatorValue);
             return variables;
         }
 
-        private CFGraph InsertPhiFuncs(CFGraph inputGraph)
+        private CFGraph InsertPhi(CFGraph inputGraph)
         {
             CFGraph ssaGraph = inputGraph;
             foreach (var variable in vars)
-            {
                 foreach (var node in inputGraph.graph.Vertices)
-                {
                     if (node.ParentsNodes.Count >= 2)
                     {
                         IValue phiLabel = new IdentificatorValue("phi" + counterPhi);
@@ -59,18 +53,7 @@ namespace LYtest.Optimize.SSA
                         }
                         counterPhi++;
                     }
-                }
-            }
             return ssaGraph;
-        }
-
-        public static void SetNewName(Dictionary<IdentificatorValue, Stack<int>> dict1,
-            Dictionary<IdentificatorValue, int> dict2, IdentificatorValue v, bool flag)
-        {
-            if (dict1[v] == null) dict1[v] = new Stack<int>();
-            var i = dict2[v];
-            dict1[v].Push(i);
-            dict2[v] = flag ? i + 1 : i - 1;
         }
 
         private void RenamingAllVars(CFGNode currentNode)
@@ -79,14 +62,14 @@ namespace LYtest.Optimize.SSA
                 return;
             foreach (var str in currentNode.Value.Enumerate())
             {
-                if (AssignPhi(str))
+                if (AdditionalMethods.AssignPhi(str))
                 {
                     IdentificatorValue curVar = str.Destination as IdentificatorValue;
-                    SetNewName(varsDictionary, varsCounter, curVar, true);
+                    AdditionalMethods.SetNewName(varsDictionary, varsCounter, curVar, true);
                     int varCounter = varsDictionary[curVar].Peek();
                     str.Destination = new IdentificatorValue(str.Destination.Value + varCounter.ToString());
                 }
-                if (!IsPhiId(str.LeftOperand as IdentificatorValue) && str.Operation != Operation.Phi)
+                if (!AdditionalMethods.IsPhiId(str.LeftOperand as IdentificatorValue) && str.Operation != Operation.Phi)
                 {
                     if (str.RightOperand is IdentificatorValue)
                     {
@@ -103,7 +86,7 @@ namespace LYtest.Optimize.SSA
                     if (str.Destination is IdentificatorValue)
                     {
                         IdentificatorValue curVar = str.Destination as IdentificatorValue;
-                        SetNewName(varsDictionary, varsCounter, curVar, true);
+                        AdditionalMethods.SetNewName(varsDictionary, varsCounter, curVar, true);
                         int varCounter = varsDictionary[curVar].Peek();
                         str.Destination = new IdentificatorValue(str.Destination.Value + varCounter.ToString());
                     }
@@ -115,7 +98,7 @@ namespace LYtest.Optimize.SSA
                 if (child == null)
                     continue;
                 foreach (var s in child.Value.Enumerate())
-                    if (AssignPhi(s))
+                    if (AdditionalMethods.AssignPhi(s))
                     {
                         foreach (var line in child.Value.Enumerate()
                             .Select(str => str).Where(str => str.Operation == Operation.Phi && str.Destination == s.LeftOperand))
@@ -159,6 +142,10 @@ namespace LYtest.Optimize.SSA
             return cfGraph;
         }
 
+    }
+
+    public class AdditionalMethods
+    {
         public static bool AssignPhi(IThreeAddressCode line)
         {
             return IsPhiId(line.LeftOperand as IdentificatorValue) && line.Operation == Operation.Assign;
@@ -169,5 +156,13 @@ namespace LYtest.Optimize.SSA
             return idCheck != null && idCheck.Value.Count() >= 3 && idCheck.Value.Substring(0, 3) == "phi";
         }
 
-    }
+        public static void SetNewName(Dictionary<IdentificatorValue, Stack<int>> dict1,
+    Dictionary<IdentificatorValue, int> dict2, IdentificatorValue v, bool flag)
+        {
+            if (dict1[v] == null) dict1[v] = new Stack<int>();
+            var i = dict2[v];
+            dict1[v].Push(i);
+            dict2[v] = flag ? i + 1 : i - 1;
+        }
+    } 
 }
