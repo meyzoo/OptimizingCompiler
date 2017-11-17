@@ -8,17 +8,17 @@ namespace LYtest.Optimize.SSA
 {
     public class SsaRemoving
     {
-        private CFGraph cfGraph;
+        private CFGraph ssaGraph;
         private HashSet<IThreeAddressCode> setTAC;
         private Dictionary<IdentificatorValue, Stack<int>> varsDict;
-        private Dictionary<IdentificatorValue, int> counters;
+        private Dictionary<IdentificatorValue, int> varsCounter;
         private List<CFGNode> visitedNodes = new List<CFGNode>();
 
-        public SsaRemoving(CFGraph cfg)
+        public SsaRemoving(CFGraph ssa)
         {
-            cfGraph = cfg;
+            ssaGraph = ssa;
             setTAC = new HashSet<IThreeAddressCode>();
-            foreach (var block in cfGraph.Blocks)
+            foreach (var block in ssaGraph.Blocks)
             {
                 foreach (var instr in block.Enumerate())
                 if (AdditionalMethods.AssignPhi(instr))
@@ -30,14 +30,14 @@ namespace LYtest.Optimize.SSA
                     block.Remove(setTAC.ElementAt(i));
             }
             varsDict = new Dictionary<IdentificatorValue, Stack<int>>();
-            counters = new Dictionary<IdentificatorValue, int>();
-            var allVariables = GetAllVariables(cfGraph);
+            varsCounter = new Dictionary<IdentificatorValue, int>();
+            var allVariables = GetAllVariables(ssaGraph);
             foreach (var v in allVariables)
             {
                 var stack = new Stack<int>();
                 stack.Push(0);
                 varsDict.Add(v, stack);
-                counters.Add(v, 0);
+                varsCounter.Add(v, 0);
             }
         }
 
@@ -59,88 +59,10 @@ namespace LYtest.Optimize.SSA
             return variables;
         }
 
-        private void RenameVarsBack(CFGNode currentNode)
-        {
-            if (visitedNodes.Contains(currentNode))
-                return;
-            foreach (var str in currentNode.Value.Enumerate())
-            {
-                if (AdditionalMethods.AssignPhi(str))
-                {
-                    IdentificatorValue curVar = str.Destination as IdentificatorValue;
-                    AdditionalMethods.SetNewName(varsDict, counters, curVar, false);
-                    int varCounter = varsDict[curVar].Peek();
-                    str.Destination = new IdentificatorValue
-                    (str.Destination.Value.Remove(str.Destination.Value.Length - 
-                    varCounter.ToString().Length, varCounter.ToString().Length));
-                }
-                if (!AdditionalMethods.IsPhiId(str.LeftOperand as IdentificatorValue) && str.Operation != Operation.Phi)
-                {
-                    if (str.RightOperand is IdentificatorValue)
-                    {
-                        IdentificatorValue curVar = str.RightOperand as IdentificatorValue;
-                        int varCounter = varsDict[curVar].Peek();
-                        str.RightOperand = new IdentificatorValue(str.RightOperand.Value.ToString().Remove
-                            (str.RightOperand.Value.ToString().Length - 
-                            varCounter.ToString().Length, varCounter.ToString().Length));
-                    }
-                    if (str.LeftOperand is IdentificatorValue)
-                    {
-                        IdentificatorValue curVar = str.LeftOperand as IdentificatorValue;
-                        int varCounter = varsDict[curVar].Peek();
-                        str.LeftOperand = new IdentificatorValue(str.LeftOperand.Value.ToString().Remove
-                            (str.LeftOperand.Value.ToString().Length - 
-                            varCounter.ToString().Length, varCounter.ToString().Length));
-                    }
-                    if (str.Destination is IdentificatorValue)
-                    {
-                        IdentificatorValue curVar = str.Destination as IdentificatorValue;
-                        AdditionalMethods.SetNewName(varsDict, counters, curVar, false);
-                        int varCounter = varsDict[curVar].Peek();
-                        str.Destination = new IdentificatorValue
-                            (str.Destination.Value.Remove(str.Destination.Value.Length -
-                            varCounter.ToString().Length, varCounter.ToString().Length));
-                    }
-                }
-            }
-            var children = new List<CFGNode>() { currentNode.directChild, currentNode.gotoNode };
-            foreach (var child in children)
-            {
-                if (child == null)
-                    continue;
-                foreach (var s in child.Value.Enumerate())
-                    if (AdditionalMethods.AssignPhi(s))
-                    {
-                        foreach (var line in child.Value.Enumerate()
-                            .Select(str => str).Where(str => str.Operation == Operation.Phi && str.Destination == s.LeftOperand))
-                        {
-                            if (line.RightOperand == currentNode.Value.Enumerate().Last().Label)
-                            {
-                                IdentificatorValue curVar = line.LeftOperand as IdentificatorValue;
-                                int varCounter = varsDict[curVar].Peek();
-                                line.LeftOperand = new IdentificatorValue(line.LeftOperand.Value.ToString().Remove
-                                    (line.LeftOperand.Value.ToString().Length - varCounter.ToString().Length, varCounter.ToString().Length));
-                            }
-                        }
-                    }
-            }
-            if (!visitedNodes.Contains(currentNode))
-                visitedNodes.Add(currentNode);
-            foreach (var child in children)
-                if (child != null)
-                    RenameVarsBack(child);
-            foreach (var str in currentNode.Value.Enumerate())
-                if (str.LeftOperand is IdentificatorValue)
-                {
-                    IdentificatorValue curVar = str.LeftOperand as IdentificatorValue;
-                    if (varsDict.Keys.Contains(curVar)) varsDict[curVar].Pop();
-                }
-        }
-
         public CFGraph RemoveSSA()
         {
-            RenameVarsBack(cfGraph.GetRoot());
-            return cfGraph;
+            SsaBuilding.RenamingAllVars(ssaGraph.GetRoot(), visitedNodes, varsDict, varsCounter, false);
+            return ssaGraph;
         }
 
     }

@@ -12,7 +12,7 @@ namespace LYtest.Optimize.SSA
         CFGraph ssaForm;
         private CFGraph cfGraph;
         private int counterPhi = 0;
-        private Dictionary<IdentificatorValue, Stack<int>> varsDictionary;
+        private Dictionary<IdentificatorValue, Stack<int>> varsDict;
         private Dictionary<IdentificatorValue, int> varsCounter;
         private HashSet<IdentificatorValue> vars;
         private List<CFGNode> visitedNodes = new List<CFGNode>();
@@ -56,18 +56,19 @@ namespace LYtest.Optimize.SSA
             return ssaGraph;
         }
 
-        private void RenamingAllVars(CFGNode currentNode)
+        public static void RenamingAllVars(CFGNode currentNode, List<CFGNode> visitedNodes,
+            Dictionary<IdentificatorValue, Stack<int>> varsDictionary, Dictionary<IdentificatorValue, int> varsCounter, bool intoSSA)
         {
-            if (visitedNodes.Contains(currentNode))
-                return;
+            if (visitedNodes.Contains(currentNode)) return;
             foreach (var str in currentNode.Value.Enumerate())
             {
                 if (AdditionalMethods.AssignPhi(str))
                 {
                     IdentificatorValue curVar = str.Destination as IdentificatorValue;
-                    AdditionalMethods.SetNewName(varsDictionary, varsCounter, curVar, true);
+                    AdditionalMethods.SetNewName(varsDictionary, varsCounter, curVar, intoSSA);
                     int varCounter = varsDictionary[curVar].Peek();
-                    str.Destination = new IdentificatorValue(str.Destination.Value + varCounter.ToString());
+                    string renamed = AdditionalMethods.Rename(str.Destination.Value, varCounter.ToString(), intoSSA);
+                    str.Destination = new IdentificatorValue(renamed);
                 }
                 if (!AdditionalMethods.IsPhiId(str.LeftOperand as IdentificatorValue) && str.Operation != Operation.Phi)
                 {
@@ -75,20 +76,23 @@ namespace LYtest.Optimize.SSA
                     {
                         IdentificatorValue curVar = str.RightOperand as IdentificatorValue;
                         int varCounter = varsDictionary[curVar].Peek();
-                        str.RightOperand = new IdentificatorValue(str.RightOperand.Value + varCounter.ToString());
+                        string renamed = AdditionalMethods.Rename(str.RightOperand.Value.ToString(), varCounter.ToString(), intoSSA);
+                        str.RightOperand = new IdentificatorValue(renamed);
                     }
                     if (str.LeftOperand is IdentificatorValue)
                     {
                         IdentificatorValue curVar = str.LeftOperand as IdentificatorValue;
                         int varCounter = varsDictionary[curVar].Peek();
-                        str.LeftOperand = new IdentificatorValue(str.LeftOperand.Value + varCounter.ToString());
+                        string renamed = AdditionalMethods.Rename(str.LeftOperand.Value.ToString(), varCounter.ToString(), intoSSA);
+                        str.LeftOperand = new IdentificatorValue(renamed);
                     }
                     if (str.Destination is IdentificatorValue)
                     {
                         IdentificatorValue curVar = str.Destination as IdentificatorValue;
-                        AdditionalMethods.SetNewName(varsDictionary, varsCounter, curVar, true);
+                        AdditionalMethods.SetNewName(varsDictionary, varsCounter, curVar, intoSSA);
                         int varCounter = varsDictionary[curVar].Peek();
-                        str.Destination = new IdentificatorValue(str.Destination.Value + varCounter.ToString());
+                        string renamed = AdditionalMethods.Rename(str.Destination.Value, varCounter.ToString(), intoSSA);
+                        str.Destination = new IdentificatorValue(renamed);
                     }
                 }
             }
@@ -107,7 +111,8 @@ namespace LYtest.Optimize.SSA
                             {
                                 IdentificatorValue curVar = line.LeftOperand as IdentificatorValue;
                                 int varCounter = varsDictionary[curVar].Peek();
-                                line.LeftOperand = new IdentificatorValue(line.LeftOperand.Value + varCounter.ToString());
+                                string renamed = AdditionalMethods.Rename(line.LeftOperand.Value.ToString(), varCounter.ToString(), intoSSA);
+                                line.LeftOperand = new IdentificatorValue(renamed);
                             }
                         }
                     }
@@ -115,7 +120,7 @@ namespace LYtest.Optimize.SSA
             if (!visitedNodes.Contains(currentNode))
                 visitedNodes.Add(currentNode);
             foreach (var child in children)
-                if (child != null) RenamingAllVars(child);
+                if (child != null) RenamingAllVars(child, visitedNodes, varsDictionary, varsCounter, intoSSA);
             foreach (var str in currentNode.Value.Enumerate())
                 if (str.LeftOperand is IdentificatorValue)
                 {
@@ -128,20 +133,19 @@ namespace LYtest.Optimize.SSA
         private CFGraph RenamingVars(CFGraph inputGraph)
         {
             cfGraph = inputGraph;
-            varsDictionary = new Dictionary<IdentificatorValue, Stack<int>>();
+            varsDict = new Dictionary<IdentificatorValue, Stack<int>>();
             varsCounter = new Dictionary<IdentificatorValue, int>();
             var allVars = GetAllVars(cfGraph);
             foreach (var v in allVars)
             {
                 var stack = new Stack<int>();
                 stack.Push(0);
-                varsDictionary.Add(v, stack);
+                varsDict.Add(v, stack);
                 varsCounter.Add(v, 0);
             }
-            RenamingAllVars(cfGraph.GetRoot());
+            RenamingAllVars(cfGraph.GetRoot(), visitedNodes, varsDict, varsCounter, true);
             return cfGraph;
         }
-
     }
 
     public class AdditionalMethods
@@ -157,12 +161,17 @@ namespace LYtest.Optimize.SSA
         }
 
         public static void SetNewName(Dictionary<IdentificatorValue, Stack<int>> dict1,
-    Dictionary<IdentificatorValue, int> dict2, IdentificatorValue v, bool flag)
+    Dictionary<IdentificatorValue, int> dict2, IdentificatorValue v, bool intoSsa)
         {
             if (dict1[v] == null) dict1[v] = new Stack<int>();
             var i = dict2[v];
             dict1[v].Push(i);
-            dict2[v] = flag ? i + 1 : i - 1;
+            dict2[v] = intoSsa ? i + 1 : i - 1;
+        }
+
+        public static string Rename(string s1, string s2, bool intoSsa)
+        {
+            return intoSsa ? s1 + s2 : s1.Remove(s1.Length - s2.Length, s2.Length);
         }
     } 
 }
